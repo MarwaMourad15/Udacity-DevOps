@@ -1,0 +1,413 @@
+Description: >
+    Udacity project 2 - Deploy a high-availability web app using CloudFormation 
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.0.0.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.0.1.0/24
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.0.2.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.0.3.0/24
+  
+  AMItoUse:
+    Description: AMI to use for our base image
+    Type: String
+    
+  KeyPair:
+    Description: Key file-name.pem to access via ssh 
+    Type: String
+
+
+Resources:
+
+  # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
+  # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
+  # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+  # ProfileWithRolesForOurApp:
+  #   Type: AWS::IAM::InstanceProfile
+  #   Properties: 
+  #     Roles:
+  #       - UdacityS3ReadOnlyEC2
+
+
+
+# Start Network components
+  Prj2VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  Prj2InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  Prj2InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref Prj2InternetGateway
+      VpcId: !Ref Prj2VPC
+
+  Prj2PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Prj2VPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+
+  Prj2PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Prj2VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+
+  Prj2PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Prj2VPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+  Prj2PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Prj2VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
+  Prj2NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: Prj2InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  Prj2NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: Prj2InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  Prj2NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt Prj2NatGateway1EIP.AllocationId
+      SubnetId: !Ref Prj2PublicSubnet1
+
+  Prj2NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt Prj2NatGateway2EIP.AllocationId
+      SubnetId: !Ref Prj2PublicSubnet2
+
+  Prj2PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Prj2VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Routes
+
+  Prj2DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: Prj2InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref Prj2PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Prj2InternetGateway
+
+  Prj2PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref Prj2PublicRouteTable
+      SubnetId: !Ref Prj2PublicSubnet1
+
+  Prj2PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref Prj2PublicRouteTable
+      SubnetId: !Ref Prj2PublicSubnet2
+
+  Prj2PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Prj2VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  Prj2DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref Prj2PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref Prj2NatGateway1
+
+  Prj2PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref Prj2PrivateRouteTable1
+      SubnetId: !Ref Prj2PrivateSubnet1
+
+  Prj2PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Prj2VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+  Prj2DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref Prj2PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref Prj2NatGateway2
+
+  Prj2PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref Prj2PrivateRouteTable2
+      SubnetId: !Ref Prj2PrivateSubnet2
+
+  # End Network components
+
+  # Start Server components 
+  #- LoadBalancer, Launch Configuration, AutoScaling group a health check, security groups 
+  # and a Listener and Target Group
+  
+
+
+
+  # RootRole: 
+  #   Type: "AWS::IAM::Role"
+  #   Properties: 
+  #     AssumeRolePolicyDocument: 
+  #       Version: "2012-10-17"
+  #       Statement: 
+  #         - Effect: "Allow"
+  #           Principal: 
+  #             Service: 
+  #               - "ec2.amazonaws.com"
+  #           Action: 
+  #             - "sts:AssumeRole"
+  #     Path: "/"
+    
+  # RolePolicies: 
+  #   Type: "AWS::IAM::Policy"
+  #   Properties: 
+  #     PolicyName: "root"
+  #     PolicyDocument: 
+  #       Version: "2012-10-17"
+  #       Statement: 
+  #         - Effect: "Allow"
+  #           Action: "*"
+  #           Resource: "*"
+  #     Roles: 
+  #       - Ref: "RootRole"
+
+  # RootInstanceProfile: 
+  #   Type: "AWS::IAM::InstanceProfile"
+  #   Properties: 
+  #     Path: "/"
+  #     Roles: 
+  #       - Ref: "RootRole"
+      
+  Prj2LBSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to our load balancer
+      VpcId: !Ref Prj2VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+  
+  Prj2WebServerSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to our hosts and SSH from local only
+      VpcId: !Ref Prj2VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+
+  Prj2WebAppLB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+      - !Ref Prj2PublicSubnet1
+      - !Ref Prj2PublicSubnet2
+      SecurityGroups:
+      - Ref: Prj2LBSecGroup
+  
+  Prj2Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: Prj2WebAppTargetGroup
+      LoadBalancerArn:
+        Ref: Prj2WebAppLB
+      Port: '80'
+      Protocol: HTTP
+  
+  Prj2ALBListenerRule:
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        Actions:
+        - Type: forward
+          TargetGroupArn: 
+            Ref: Prj2WebAppTargetGroup
+        Conditions:
+        - Field: path-pattern
+          Values: [/]
+        ListenerArn: 
+          Ref: Prj2Listener
+        Priority: 1
+  
+  Prj2WebAppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 8
+      HealthyThresholdCount: 4
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 6
+      VpcId: !Ref Prj2VPC
+  
+  Prj2WebAppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update -y
+          apt-get install apache2 -y
+          systemctl start apache2.service
+          cd /var/www/html
+          echo "it works! Udagram, Udacity" > index.html
+      ImageId: !Ref AMItoUse
+      #KeyName: !Ref KeyPair
+      #IamInstanceProfile: !Ref RootInstanceProfile
+      #IamInstanceProfile: !Ref ProfileWithRolesForOurApp
+      SecurityGroups:
+      - Ref: Prj2WebServerSecGroup
+      InstanceType: t3.medium
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sdk"
+        Ebs:
+          VolumeSize: '10'
+
+  Prj2WebAppGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+      - !Join [",", [!Ref Prj2PrivateSubnet1, !Ref Prj2PrivateSubnet2]]
+      LaunchConfigurationName:
+        Ref: Prj2WebAppLaunchConfig
+      MinSize: '4'
+      MaxSize: '6'
+      TargetGroupARNs:
+      - Ref: Prj2WebAppTargetGroup
+
+Outputs:
+  # This is also optional.
+  # Bonus points for useful outputs!
+  # for example, if you create a Load Balancer
+  # it's nice to output the URL to it here, so that we don't have to go to the console to get it.
+
+  Prj2VPC:
+    Description: A reference to the created VPC
+    Value: !Ref Prj2VPC
+    Export:
+      Name: !Sub ${EnvironmentName}-VPCID
+
+  Prj2VPCPublicRouteTable:
+    Description: Public Routing
+    Value: !Ref Prj2PublicRouteTable
+    Export:
+      Name: !Sub ${EnvironmentName}-PUB-RT
+
+  Prj2PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Join [",", [!Ref Prj2PublicSubnet1, !Ref Prj2PublicSubnet2]]
+    Export:
+      Name: !Sub ${EnvironmentName}-PUB-NETS
+
+  Prj2WebAppLB:
+    Description: A reference to the created Load Balancer
+    Value: !Ref Prj2WebAppLB
+    Export:
+      Name: !Sub ${EnvironmentName}-LB
+
+  Prj2LoadBalancerUrl:
+    Description: The URL of the ALB
+    Value: !Sub "http://${Prj2WebAppLB.DNSName}"
+    Export:
+      Name: !Sub ${EnvironmentName}-LB-URL
