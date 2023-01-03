@@ -39,6 +39,15 @@ Parameters:
     Description: Key file-name.pem to access via ssh 
     Type: String
 
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+
 
 Resources:
 
@@ -358,7 +367,8 @@ Resources:
       #IamInstanceProfile: !Ref ProfileWithRolesForOurApp
       SecurityGroups:
       - Ref: Prj2WebServerSecGroup
-      InstanceType: t3.medium
+      InstanceType: !Ref InstanceTypeParameter
+      #InstanceType: t3.medium
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
@@ -371,7 +381,8 @@ Resources:
       - !Join [",", [!Ref Prj2PrivateSubnet1, !Ref Prj2PrivateSubnet2]]
       LaunchConfigurationName:
         Ref: Prj2WebAppLaunchConfig
-      MinSize: '4'
+      #MinSize: '4'
+      MinSize: '2'
       MaxSize: '6'
       TargetGroupARNs:
       - Ref: Prj2WebAppTargetGroup
@@ -407,7 +418,7 @@ Outputs:
       Name: !Sub ${EnvironmentName}-LB
 
   Prj2LoadBalancerUrl:
-    Description: The URL of the ALB
+    Description: The URL of the LB
     Value: !Sub "http://${Prj2WebAppLB.DNSName}"
     Export:
       Name: !Sub ${EnvironmentName}-LB-URL

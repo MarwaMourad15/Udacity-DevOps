@@ -30,5 +30,9 @@
     {
         "ParameterKey": "KeyPair",
 		"ParameterValue": "udacityKey"
+    },
+	{
+        "ParameterKey": "InstanceTypeParameter",
+		"ParameterValue": "t2.micro"
     }
 ]
