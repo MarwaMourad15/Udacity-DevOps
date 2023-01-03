@@ -1,0 +1,135 @@
+Description: >
+    Udacity project 2 - create Jumpbox (bastion host) 
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  AMItoUse:
+    Description: AMI to use for our base image
+    Type: String
+    
+  KeyPair:
+    Description: Key file-name.pem to access via ssh 
+    Type: String
+
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+
+## SSH CidrIp in-bound rule - must get my ip addess 
+  SSHLocation:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/0-28
+    Default: 0.0.0.0/0
+    Description: Network allowed to ssh to instances in public subnet.
+    Type: String
+
+
+Resources:
+
+  # script for jump box
+  BastionHost:
+    Type: AWS::EC2::Instance
+    # DependsOn:
+    # - Fn::ImportValue: 
+    #       !Sub "${EnvironmentName}-Internet-Attach"
+    Properties:
+      KeyName: !Ref 'KeyPair'
+      ImageId: !Ref AMItoUse
+      InstanceType: !Ref InstanceTypeParameter
+      IamInstanceProfile: !Ref ProfileWithRolesForOurApp
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: true
+        DeleteOnTermination: true
+        Description: ENI for bastion host
+        DeviceIndex: '0'
+        SubnetId: 
+          Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
+        GroupSet:
+        - !Ref 'PublicInstanceSG'
+      Tags:
+      - Key: Name
+        Value: !Sub 'Linux bastion ${EnvironmentName}-VPCID'
+      - Key: CloudFormationStack
+        Value: !Ref 'AWS::StackId'
+
+  PublicInstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: !Ref 'SSHLocation'
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: 'PublicSGBastionHost'
+      - Key: CloudFormationStack
+        Value: !Ref 'AWS::StackId'
+
+
+
+  S3Role: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      RoleName: EC2SessionMgr
+      AssumeRolePolicyDocument:
+        Statement: 
+          - Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+    
+  RolePolicies: 
+    Type: "AWS::IAM::Policy"
+    Properties: 
+      PolicyName: "EC2S3Role"
+      PolicyDocument: 
+        Statement: 
+          - Effect: "Allow"
+            Action: 
+            - "S3:Get*" 
+            - "S3:List*"
+            Resource: "*"
+      Roles: 
+        - Ref: "S3Role"
+
+  ProfileWithRolesForOurApp:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      Roles:
+      - Ref: "S3Role"
+
+  
+
+Outputs:
+
+  BastionHost:
+    Description: Ubuntu Jump host
+    Value: !Ref BastionHost
+    Export:
+      Name: !Sub ${EnvironmentName}-Bastion-host
+
+  BastionHostPublicIp:
+    Description: Ubuntu Jump host PublicIp
+    Value: !Sub ${BastionHost.PublicIp}
+    Export:
+      Name: !Sub ${EnvironmentName}-Bastion-host-PublicIp
