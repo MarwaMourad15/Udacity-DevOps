@@ -9,3 +9,4 @@ The CloudFormation script using this YAML template for building the cloud infras
 The parameters file using json.
 
 ### URL Load Balancer 
+* [Click Here](http://udaci-prj2w-wvjiaqrggwjr-1315816044.us-east-1.elb.amazonaws.com/)
