@@ -342,11 +342,7 @@ Resources:
           systemctl start apache2.service
           cd /var/www/html
           echo "it works! Udagram, Udacity" > index.html
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
-          aws s3 cp s3://my927865716822-prj2/index.html /var/www/html/index.html
-
+         
       ImageId: !Ref AMItoUse
       #KeyName: !Ref KeyPair
       #IamInstanceProfile: !Ref RootInstanceProfile
