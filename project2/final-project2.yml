@@ -318,6 +318,21 @@ Resources:
   Prj2WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
+      # Metadata:
+      #   AWS::CloudFormation::Authentication:
+      #     S3AccessCreds:
+      #       type: "S3"
+      #       roleName: !Ref "Prj2S3Role"
+      #   AWS::CloudFormation::Init:
+      #     config:
+      #       files:
+      #         "/var/www/html/index.html":
+      #           mode: '000400'
+      #           owner: root
+      #           group: root
+      #           source: "s3://my927865716822-prj2/index.html"
+      #           authentication: "S3AccessCreds"
+
       UserData:
       #todo update user data to install cli, connect to s3, get files 
         Fn::Base64: !Sub |
