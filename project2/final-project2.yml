@@ -49,6 +49,11 @@ Parameters:
       - m1.large
     Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
 
+    BucketName:
+    Description: The bucket contains the static website
+    Type: string
+    Default: my927865716822-prj2
+
 ## SSH CidrIp in-bound rule - get my ip address?? 
   SSHLocation:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(/([0-9]|[1-2][0-9]|3[0-2]))$
@@ -337,11 +342,13 @@ Resources:
       #todo update user data to install cli, connect to s3, get files 
         Fn::Base64: !Sub |
           #!/bin/bash
-          apt-get update -y
-          apt-get install apache2 -y
+          apt update -y
+          apt install apache2 awscli -y
+
           systemctl start apache2.service
-          cd /var/www/html
-          echo "it works! Udagram, Udacity" > index.html
+          systemctl enable apache2.service
+
+          aws s3 sync s3://${BucketName} /var/www/html
          
       ImageId: !Ref AMItoUse
       #KeyName: !Ref KeyPair
