@@ -65,11 +65,11 @@ jobs:
       - checkout
       - run:
           name: "save_hello_world_output"
-          command: echo "hello world" > output.txt
+          command: echo "hello world" > workspace/output.txt
       - persist_to_workspace:
-          root: /tmp/workspace
+          root: workspace
           paths:
-          - /output.txt
+          - output.txt
   
   print_output_file:
     docker:
