@@ -65,6 +65,7 @@ jobs:
       - checkout
       - run: return 1
           
+          
     print_when_fail:
     docker:
       - image: circleci/node:13.8.0
@@ -75,29 +76,29 @@ jobs:
           when: on_fail
 
 
-  save_hello_world_output:
-    docker:
-      - image: cimg/base:2022.11
-    steps:
-      - checkout
-      - run:
-          name: "save_hello_world_output"
-          command: echo "hello world" > ~/output.txt
-      - persist_to_workspace:
-          root: ~/
-          paths:
-          - output.txt
+  # save_hello_world_output:
+  #   docker:
+  #     - image: cimg/base:2022.11
+  #   steps:
+  #     - checkout
+  #     - run:
+  #         name: "save_hello_world_output"
+  #         command: echo "hello world" > ~/output.txt
+  #     - persist_to_workspace:
+  #         root: ~/
+  #         paths:
+  #         - output.txt
   
-  print_output_file:
-    docker:
-      - image: cimg/base:2022.11
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/
-      - run:
-          name: "print_output_file"
-          command: cat ~/output.txt
+  # print_output_file:
+  #   docker:
+  #     - image: cimg/base:2022.11
+  #   steps:
+  #     - checkout
+  #     - attach_workspace:
+  #         at: ~/
+  #     - run:
+  #         name: "print_output_file"
+  #         command: cat ~/output.txt
       
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
