@@ -58,6 +58,31 @@ jobs:
   #         name: "Say My name"
   #         command: "echo $DEMO_ENV_VAR"
 
+  return_fail:
+    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+    docker:
+      - image: circleci/node:13.8.0
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+      - checkout
+      - run: return 1
+          
+    print_when_fail:
+    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+    docker:
+      - image: circleci/node:13.8.0
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+      - checkout
+      - run: 
+          command: echo "Hello Error!"
+          when: on_fail
+
+
   save_hello_world_output:
     docker:
       - image: cimg/base:2022.11
@@ -92,6 +117,10 @@ workflows:
       #     requires: [print_hello]
       # - print_my_name
 
-      - save_hello_world_output
-      - print_output_file:
-          requires: [save_hello_world_output]
+      # - save_hello_world_output
+      # - print_output_file:
+      #     requires: [save_hello_world_output]
+
+      - return_fail
+      - print_when_fail
+
