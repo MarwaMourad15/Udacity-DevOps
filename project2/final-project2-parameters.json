@@ -38,5 +38,9 @@
     {
         "ParameterKey":"SSHLocation",
 		"ParameterValue": "0.0.0.0/0"
+    },
+    {
+        "ParameterKey":"BucketName",
+		"ParameterValue": "my927865716822-prj2"
     }
 ]
