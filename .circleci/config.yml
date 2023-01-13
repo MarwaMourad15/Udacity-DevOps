@@ -58,14 +58,14 @@ jobs:
   #         name: "Say My name"
   #         command: "echo $DEMO_ENV_VAR"
 
-  return_fail:
+  purpose_fail:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
       - run: return 1
           
-          
+
     print_when_fail:
     docker:
       - image: circleci/node:13.8.0
