@@ -62,16 +62,9 @@ jobs:
     docker:
       - image: circleci/node:13.8.0
     steps:
-      - checkout
-      - run: return 1
-          
-
-  print_when_fail:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
-      - run: 
+      - run: exit 1
+      - run:
+          name: on error
           command: echo "Hello Error!"
           when: on_fail
 
@@ -115,5 +108,4 @@ workflows:
       #     requires: [save_hello_world_output]
 
       - purpose_fail
-      - print_when_fail
 
