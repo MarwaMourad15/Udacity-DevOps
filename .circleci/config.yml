@@ -114,6 +114,6 @@ workflows:
       # - print_output_file:
       #     requires: [save_hello_world_output]
 
-      - return_fail
+      - purpose_fail
       - print_when_fail
 
